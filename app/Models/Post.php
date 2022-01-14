@@ -17,11 +17,4 @@ class Post extends Model
         'text',
         'user_id',
     ];
-
-    /**
-     * @var array<int>
-     */
-    protected $hidden = [
-        'user_id',
-    ];
 }

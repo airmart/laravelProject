@@ -18,9 +18,9 @@ class PostController extends Controller
      */
     public function index(): JsonResponse
     {
-        $post = Post::all();
+        $posts = Post::all();
 
-        return new JsonResponse($post);
+        return new JsonResponse($posts);
     }
 
     /**
