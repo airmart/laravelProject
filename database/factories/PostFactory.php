@@ -12,12 +12,14 @@ class PostFactory extends Factory
      *
      * @return array
      */
-    public function definition()
+    public function definition(): array
     {
         return [
             'title' => $this->faker->title(),
             'text' => $this->faker->text(),
-            'user_id' => User::all()->random()->id,
+            'user_id' => function() {
+                return User::factory()->create();
+            },
         ];
     }
 }
