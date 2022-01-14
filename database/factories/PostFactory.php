@@ -18,7 +18,7 @@ class PostFactory extends Factory
             'title' => $this->faker->title(),
             'text' => $this->faker->text(),
             'user_id' => function() {
-                return User::factory()->create();
+                return User::factory()->create()->id;
             },
         ];
     }
