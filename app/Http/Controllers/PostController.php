@@ -2,15 +2,23 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Repositories\PostRepository;
 use App\Models\Post;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Js;
 use Symfony\Component\HttpFoundation\Response;
 
 class PostController extends Controller
 {
+    /** @var PostRepository */
+    public PostRepository $postRepository;
+
+    public function __construct(PostRepository $postRepository)
+    {
+        $this->postRepository = $postRepository;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -18,7 +26,7 @@ class PostController extends Controller
      */
     public function index(): JsonResponse
     {
-        $posts = Post::all();
+        $posts = $this->postRepository->get();
 
         return new JsonResponse($posts);
     }
@@ -41,11 +49,11 @@ class PostController extends Controller
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $post = new Post();
-        $post->title = $request->input('title');
-        $post->text = $request->input('text');
-        $post->user_id = $request->input('user_id');
-        $post->save();
+        $post = $this->postRepository->create([
+            'title' => $request->input('title'),
+            'text' => $request->input('text'),
+            'user_id' => $request->input('user_id')
+        ]);
 
         return new JsonResponse($post);
     }
@@ -58,7 +66,7 @@ class PostController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $post = Post::find($id);
+        $post = $this->postRepository->find($id);
 
         if (is_null($post)) {
             return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
@@ -76,7 +84,7 @@ class PostController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $post = Post::find($id);
+        $post = $this->postRepository->find($id);
 
         if (is_null($post)) {
             return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
@@ -92,10 +100,12 @@ class PostController extends Controller
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $post->title = $request->input('title');
-        $post->text = $request->input('text');
-        $post->user_id = $request->input('user_id');
-        $post->save();
+        $this->postRepository->update($id, [
+            'title' => $request->input('title'),
+            'text' => $request->input('text'),
+            'user_id' => $request->input('user_id')
+        ]);
+        $post->refresh();
 
         return new JsonResponse($post);
     }
@@ -108,13 +118,13 @@ class PostController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $post = Post::find($id);
+        $post = $this->postRepository->find($id);
 
         if (is_null($post)) {
             return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
         }
 
-        $post->delete();
+        $this->postRepository->delete($id);
 
         return new JsonResponse(['success' => true]);
     }

@@ -2,7 +2,7 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\User;
+use App\Http\Repositories\UserRepository;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -12,6 +12,14 @@ use Symfony\Component\HttpFoundation\Response;
 
 class UserController extends Controller
 {
+    /** @var UserRepository */
+    public UserRepository $userRepository;
+
+    public function __construct(UserRepository $userRepository)
+    {
+        $this->userRepository = $userRepository;
+    }
+
     /**
      * Display a listing of the resource.
      *
@@ -19,7 +27,7 @@ class UserController extends Controller
      */
     public function index(): JsonResponse
     {
-        $users = User::all();
+        $users = $this->userRepository->get();
 
         return new JsonResponse($users);
     }
@@ -42,11 +50,11 @@ class UserController extends Controller
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $user = new User();
-        $user->name = $request->input('name');
-        $user->password = Hash::make($request->input('password'));
-        $user->email = $request->input('email');
-        $user->save();
+        $user = $this->userRepository->create([
+            'name' => $request->input('name'),
+            'password' => Hash::make($request->input('password')),
+            'email' => $request->input('email')
+        ]);
 
         return new JsonResponse($user);
     }
@@ -59,7 +67,7 @@ class UserController extends Controller
      */
     public function show(int $id): JsonResponse
     {
-        $user = User::find($id);
+        $user = $this->userRepository->find($id);
 
         if (is_null($user)) {
             return new JsonResponse(['error' => 'User does not exist'], Response::HTTP_NOT_FOUND);
@@ -77,7 +85,7 @@ class UserController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $user = User::find($id);
+        $user = $this->userRepository->find($id);
 
         if (is_null($user)) {
             return new JsonResponse(['error' => 'User does not exist'], Response::HTTP_NOT_FOUND);
@@ -93,10 +101,12 @@ class UserController extends Controller
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $user->name = $request->input('name');
-        $user->password = Hash::make($request->input('password'));
-        $user->email = $request->input('email');
-        $user->save();
+        $this->userRepository->update($id, [
+            'name' => $request->input('name'),
+            'password' => Hash::make($request->input('password')),
+            'email' => $request->input('email')
+        ]);
+        $user->refresh();
 
         return new JsonResponse($user);
     }
@@ -109,13 +119,13 @@ class UserController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $user = User::find($id);
+        $user = $this->userRepository->find($id);
 
         if (is_null($user)) {
             return new JsonResponse(['error' => 'User does not exist'], Response::HTTP_NOT_FOUND);
         }
 
-        $user->delete();
+        $this->userRepository->delete($id);
 
         return new JsonResponse(['success' => true]);
     }
