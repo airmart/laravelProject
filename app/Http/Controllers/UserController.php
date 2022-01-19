@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Repositories\UserRepository;
+use App\Services\PaginationHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -23,11 +24,15 @@ class UserController extends Controller
     /**
      * Display a listing of the resource.
      *
+     * @param Request $request
+     * @param PaginationHelper $paginationHelper
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request, PaginationHelper $paginationHelper): JsonResponse
     {
-        $users = $this->userRepository->get();
+        $page = (int)$request->input('page', 1);
+        $offset = $paginationHelper->getOffset($page);
+        $users = $this->userRepository->get($offset);
 
         return new JsonResponse($users);
     }

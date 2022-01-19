@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Repositories\PostRepository;
-use App\Models\Post;
+use App\Services\PaginationHelper;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -22,11 +22,15 @@ class PostController extends Controller
     /**
      * Display a listing of the resource.
      *
+     * @param Request $request
+     * @param PaginationHelper $paginationHelper
      * @return JsonResponse
      */
-    public function index(): JsonResponse
+    public function index(Request $request, PaginationHelper $paginationHelper): JsonResponse
     {
-        $posts = $this->postRepository->get();
+        $page = (int)$request->input('page', 1);
+        $offset = $paginationHelper->getOffset($page);
+        $posts = $this->postRepository->get($offset);
 
         return new JsonResponse($posts);
     }

@@ -2,6 +2,7 @@
 
 namespace App\Http\Repositories;
 
+use App\Services\PaginationHelper;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -39,12 +40,12 @@ abstract class AbstractRepository
     }
 
     /**
+     * @param int $offset
      * @return Model[]|Collection
      */
-    public function get(): iterable
+    public function get(int $offset): iterable
     {
-        // TO DO :: implement pagination
-        return $this->queryBuilder->get();
+        return $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE)->get();
     }
 
     /**
