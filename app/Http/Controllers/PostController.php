@@ -29,8 +29,10 @@ class PostController extends Controller
     public function index(Request $request, PaginationHelper $paginationHelper): JsonResponse
     {
         $page = (int)$request->input('page', 1);
+        $field = (string)$request->input('sort');
+        $order = (string)$request->input('sort_dir');
         $offset = $paginationHelper->getOffset($page);
-        $posts = $this->postRepository->get($offset);
+        $posts = $this->postRepository->get($offset, $field, $order);
 
         return new JsonResponse($posts);
     }

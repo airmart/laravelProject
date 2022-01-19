@@ -22,7 +22,7 @@ abstract class AbstractRepository
      * @param int $id
      * @param array $data
      */
-    public function update(int $id, array $data)
+    public function update(int $id, array $data): void
     {
         $primaryKey = $this->queryBuilder->getModel()->getKeyName();
 
@@ -41,11 +41,13 @@ abstract class AbstractRepository
 
     /**
      * @param int $offset
+     * @param string $field
+     * @param string $order
      * @return Model[]|Collection
      */
-    public function get(int $offset): iterable
+    public function get(int $offset, string $field, string $order): iterable
     {
-        return $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE)->get();
+        return $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE)->orderBy($field, $order)->get();
     }
 
     /**
