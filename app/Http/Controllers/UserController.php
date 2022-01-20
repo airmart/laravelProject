@@ -2,8 +2,12 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Repositories\UserRepository;
+use App\Exceptions\SortingException;
+use App\Services\SortDataValidator;
+use App\Repositories\UserRepository;
+use App\Models\User;
 use App\Services\PaginationHelper;
+use App\Structures\SortData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
@@ -26,15 +30,24 @@ class UserController extends Controller
      *
      * @param Request $request
      * @param PaginationHelper $paginationHelper
+     * @param SortDataValidator $validator
      * @return JsonResponse
      */
-    public function index(Request $request, PaginationHelper $paginationHelper): JsonResponse
+    public function index(Request $request, PaginationHelper $paginationHelper, SortDataValidator $validator): JsonResponse
     {
+        $sortData = new SortData();
+        $sortData->sortField = (string)$request->input('sort', User::getDefaultSortField());
+        $sortData->sortDirection = (string)$request->input('sort_dir', User::getDefaultSortDirection());
         $page = (int)$request->input('page', 1);
-        $field = (string)$request->input('sort');
-        $order = (string)$request->input('sort_dir');
         $offset = $paginationHelper->getOffset($page);
-        $users = $this->userRepository->get($offset, $field, $order);
+
+        try {
+            $validator->validateSortData($this->userRepository, $sortData);
+        } catch (SortingException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $users = $this->userRepository->get($offset, $sortData);
 
         return new JsonResponse($users);
     }

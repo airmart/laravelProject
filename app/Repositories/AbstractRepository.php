@@ -1,8 +1,9 @@
 <?php
 
-namespace App\Http\Repositories;
+namespace App\Repositories;
 
 use App\Services\PaginationHelper;
+use App\Structures\SortData;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Database\Eloquent\Model;
@@ -41,13 +42,16 @@ abstract class AbstractRepository
 
     /**
      * @param int $offset
-     * @param string $field
-     * @param string $order
+     * @param SortData $sortData
      * @return Model[]|Collection
      */
-    public function get(int $offset, string $field, string $order): iterable
+    public function get(int $offset, SortData $sortData): iterable
     {
-        return $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE)->orderBy($field, $order)->get();
+        return $this->queryBuilder
+            ->skip($offset)
+            ->take(PaginationHelper::RECORDS_PER_PAGE)
+            ->orderBy($sortData->sortField, $sortData->sortDirection)
+            ->get();
     }
 
     /**
