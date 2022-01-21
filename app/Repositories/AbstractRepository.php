@@ -42,16 +42,18 @@ abstract class AbstractRepository
 
     /**
      * @param int $offset
-     * @param SortData $sortData
+     * @param SortData[] $sortData
      * @return Model[]|Collection
      */
-    public function get(int $offset, SortData $sortData): iterable
+    public function get(int $offset, array $sortData): iterable
     {
-        return $this->queryBuilder
-            ->skip($offset)
-            ->take(PaginationHelper::RECORDS_PER_PAGE)
-            ->orderBy($sortData->sortField, $sortData->sortDirection)
-            ->get();
+        $query = $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE);
+
+        foreach ($sortData as $data) {
+            $query = $query->orderBy($data->sortField, $data->sortDirection);
+        }
+
+        return $query->get();
     }
 
     /**

@@ -3,11 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\SortingException;
+use App\Services\SortDataParser;
 use App\Services\SortDataValidator;
 use App\Repositories\PostRepository;
 use App\Models\Post;
 use App\Services\PaginationHelper;
-use App\Structures\SortData;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
@@ -18,33 +18,53 @@ class PostController extends Controller
     /** @var PostRepository */
     public PostRepository $postRepository;
 
-    public function __construct(PostRepository $postRepository)
+    /** @var PaginationHelper */
+    public PaginationHelper $paginationHelper;
+
+    /** @var SortDataValidator */
+    public SortDataValidator $sortDataValidator;
+
+    /** @var SortDataParser */
+    public SortDataParser $sortDataParser;
+
+    public function __construct(
+        PostRepository $postRepository,
+        PaginationHelper $paginationHelper,
+        SortDataValidator $sortDataValidator,
+        SortDataParser $sortDataParser
+    )
     {
         $this->postRepository = $postRepository;
+        $this->paginationHelper = $paginationHelper;
+        $this->sortDataValidator = $sortDataValidator;
+        $this->sortDataParser = $sortDataParser;
     }
 
     /**
      * Display a listing of the resource.
      *
      * @param Request $request
-     * @param PaginationHelper $paginationHelper
-     * @param SortDataValidator $validator
      * @return JsonResponse
      */
-    public function index(Request $request, PaginationHelper $paginationHelper, SortDataValidator $validator): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        $sortData = new SortData();
-        $sortData->sortField = (string)$request->input('sort', Post::getDefaultSortField());
-        $sortData->sortDirection = (string)$request->input('sort_dir', Post::getDefaultSortDirection());
-        $page = (int)$request->input('page', 1);
-        $offset = $paginationHelper->getOffset($page);
+        $defaultSortData = [
+            [
+                'sortField' => Post::getDefaultSortField(),
+                'sortDirection' => Post::getDefaultSortDirection()
+            ]
+        ];
+        $sortData = (array)$request->input('sort', $defaultSortData);
 
         try {
-            $validator->validateSortData($this->postRepository, $sortData);
+            $this->sortDataValidator->validateSortData($this->postRepository, $sortData);
         } catch (SortingException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $page = (int)$request->input('page', 1);
+        $offset = $this->paginationHelper->getOffset($page);
+        $sortData = $this->sortDataParser->parseSortData($sortData);
         $posts = $this->postRepository->get($offset, $sortData);
 
         return new JsonResponse($posts);

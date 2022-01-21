@@ -2,13 +2,12 @@
 
 namespace App\Services;
 
+use App\Exceptions\BadSortRequestException;
 use App\Exceptions\SortDirectionException;
 use App\Exceptions\SortFieldException;
 use App\Exceptions\SortingException;
 use App\Repositories\AbstractRepository;
 use App\Models\Interfaces\SortableModelInterface;
-use App\Structures\SortData;
-use Exception;
 use Illuminate\Support\Facades\App;
 
 class SortDataValidator
@@ -17,26 +16,41 @@ class SortDataValidator
 
     /**
      * @param AbstractRepository $repository
-     * @param SortData $sortData
-     * @throws SortDirectionException
-     * @throws SortFieldException
+     * @param array $sortData
+     * @throws SortingException
      */
-    public function validateSortData(AbstractRepository $repository, SortData $sortData): void
+    public function validateSortData(AbstractRepository $repository, array $sortData): void
     {
-        $upperCaseSortDir = strtoupper($sortData->sortDirection);
-
-        if (!in_array($upperCaseSortDir, self::ALLOWED_DIRECTIONS)) {
-            throw new SortDirectionException($sortData->sortDirection);
-        }
-
         $modelClass = $repository->getModelClass();
         $model = App::make($modelClass);
 
-        if ($model instanceof SortableModelInterface) {
-            $allowedSortFields = $modelClass::getAllowedSortFields();
+        if (!$model instanceof SortableModelInterface) {
+            return;
+        }
 
-            if (!in_array($sortData->sortField, $allowedSortFields)) {
-                throw new SortFieldException($sortData->sortField);
+        $allowedSortFields = $modelClass::getAllowedSortFields();
+
+        foreach ($sortData as $data) {
+            if (!is_array($data)) {
+                throw new BadSortRequestException('Sort data item must be an array');
+            }
+
+            if (!array_key_exists('sortField', $data)) {
+                throw new BadSortRequestException('Sort data item must have "sortField" key');
+            }
+
+            if (!array_key_exists('sortDirection', $data)) {
+                throw new BadSortRequestException('Sort data item must have "sortDirection" key');
+            }
+
+            $upperCaseSortDir = strtoupper($data['sortDirection']);
+
+            if (!in_array($upperCaseSortDir, self::ALLOWED_DIRECTIONS)) {
+                throw new SortDirectionException($data['sortDirection']);
+            }
+
+            if (!in_array($data['sortField'], $allowedSortFields)) {
+                throw new SortFieldException($data['sortField']);
             }
         }
     }
