@@ -66,4 +66,9 @@ class User extends Authenticatable implements SortableModelInterface
     {
         return ['id', 'name', 'email', 'email_verified_at', 'created_at', 'updated_at'];
     }
+
+    static function getFiltrableColumns(): array
+    {
+        return ['id', 'name', 'email', 'email_verified_at'];
+    }
 }

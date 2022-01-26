@@ -45,7 +45,7 @@ abstract class AbstractRepository
      * @param SortData[] $sortData
      * @return Model[]|Collection
      */
-    public function get(int $offset, array $sortData): iterable
+    public function get(int $offset = 0, array $sortData = []): iterable
     {
         $query = $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE);
 

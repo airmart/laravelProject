@@ -56,6 +56,7 @@ class UserController extends Controller
             ]
         ];
         $sortData = (array)$request->input('sort', $defaultSortData);
+        $filterData = (array)$request->input('sort', []);
 
         try {
             $this->sortDataValidator->validateSortData($this->userRepository, $sortData);

@@ -42,4 +42,9 @@ class Post extends Model implements SortableModelInterface
     {
         return ['id', 'title', 'text', 'user_id', 'created_at', 'updated_at'];
     }
+
+    static function getFiltrableColumns(): array
+    {
+        return ['id', 'title', 'text', 'user_id', 'created_at', 'updated_at'];
+    }
 }
