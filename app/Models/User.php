@@ -3,13 +3,13 @@
 namespace App\Models;
 
 use App\Models\Interfaces\SortableModelInterface;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Models\Interfaces\FilterableModelInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements SortableModelInterface
+class User extends Authenticatable implements SortableModelInterface, FilterableModelInterface
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -46,7 +46,7 @@ class User extends Authenticatable implements SortableModelInterface
     /**
      * @return string
      */
-    static function getDefaultSortField(): string
+    public static function getDefaultSortField(): string
     {
         return 'id';
     }
@@ -54,7 +54,7 @@ class User extends Authenticatable implements SortableModelInterface
     /**
      * @return string
      */
-    static function getDefaultSortDirection(): string
+    public static function getDefaultSortDirection(): string
     {
         return 'ASC';
     }
@@ -62,13 +62,16 @@ class User extends Authenticatable implements SortableModelInterface
     /**
      * @return string[]
      */
-    static function getAllowedSortFields(): array
+    public static function getAllowedSortFields(): array
     {
         return ['id', 'name', 'email', 'email_verified_at', 'created_at', 'updated_at'];
     }
 
-    static function getFiltrableColumns(): array
+    /**
+     * @return string[]
+     */
+    public static function getFilterableColumns(): array
     {
-        return ['id', 'name', 'email', 'email_verified_at'];
+        return ['id', 'name', 'email', 'email_verified_at', 'created_at', 'updated_at'];
     }
 }

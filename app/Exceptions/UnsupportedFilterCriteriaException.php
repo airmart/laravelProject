@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use Throwable;
 
-class CriteriaFilterException extends FilterException
+class UnsupportedFilterCriteriaException extends FilterException
 {
     public function __construct($criteriaFilter, $code = 0, Throwable $previous = null)
     {

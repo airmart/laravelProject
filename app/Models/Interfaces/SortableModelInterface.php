@@ -4,8 +4,18 @@ namespace App\Models\Interfaces;
 
 interface SortableModelInterface
 {
-    static function getDefaultSortField(): string;
-    static function getDefaultSortDirection(): string;
-    static function getAllowedSortFields(): array;
-    static function getFiltrableColumns(): array;
+    /**
+     * @return string
+     */
+    public static function getDefaultSortField(): string;
+
+    /**
+     * @return string
+     */
+    public static function getDefaultSortDirection(): string;
+
+    /**
+     * @return array
+     */
+    public static function getAllowedSortFields(): array;
 }

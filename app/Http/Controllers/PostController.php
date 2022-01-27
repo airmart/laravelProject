@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Exceptions\FilterException;
 use App\Exceptions\SortingException;
+use App\Factories\FilterCriteriaFactory;
+use App\Services\FilterDataValidator;
 use App\Services\SortDataParser;
 use App\Services\SortDataValidator;
 use App\Repositories\PostRepository;
@@ -27,17 +30,22 @@ class PostController extends Controller
     /** @var SortDataParser */
     public SortDataParser $sortDataParser;
 
+    /** @var FilterDataValidator */
+    public FilterDataValidator $filterValidator;
+
     public function __construct(
         PostRepository $postRepository,
         PaginationHelper $paginationHelper,
         SortDataValidator $sortDataValidator,
-        SortDataParser $sortDataParser
+        SortDataParser $sortDataParser,
+        FilterDataValidator $filterValidator
     )
     {
         $this->postRepository = $postRepository;
         $this->paginationHelper = $paginationHelper;
         $this->sortDataValidator = $sortDataValidator;
         $this->sortDataParser = $sortDataParser;
+        $this->filterValidator = $filterValidator;
     }
 
     /**
@@ -55,6 +63,9 @@ class PostController extends Controller
             ]
         ];
         $sortData = (array)$request->input('sort', $defaultSortData);
+        $filterData = (array)$request->input('filter', []);
+        $page = (int)$request->input('page', 1);
+        $offset = $this->paginationHelper->getOffset($page);
 
         try {
             $this->sortDataValidator->validateSortData($this->postRepository, $sortData);
@@ -62,10 +73,15 @@ class PostController extends Controller
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $page = (int)$request->input('page', 1);
-        $offset = $this->paginationHelper->getOffset($page);
+        try {
+            $this->filterValidator->validateFilterData($this->postRepository, $filterData);
+            $filterCriterias = FilterCriteriaFactory::makeCriterias($filterData);
+        } catch (FilterException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $sortData = $this->sortDataParser->parseSortData($sortData);
-        $posts = $this->postRepository->get($offset, $sortData);
+        $posts = $this->postRepository->get($offset, $sortData, $filterCriterias);
 
         return new JsonResponse($posts);
     }

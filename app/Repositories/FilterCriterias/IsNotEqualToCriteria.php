@@ -2,7 +2,16 @@
 
 namespace App\Repositories\FilterCriterias;
 
-class IsNotEqualToCriteria implements FilterCriteriaInterface
-{
+use Illuminate\Database\Eloquent\Builder;
 
+class IsNotEqualToCriteria extends AbstractFilterCriteria
+{
+    /**
+     * @param Builder $builder
+     * @return Builder
+     */
+    public function apply(Builder $builder): Builder
+    {
+        return $builder->where($this->column, '!=', $this->value);
+    }
 }

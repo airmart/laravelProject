@@ -2,6 +2,7 @@
 
 namespace App\Repositories;
 
+use App\Repositories\FilterCriterias\AbstractFilterCriteria;
 use App\Services\PaginationHelper;
 use App\Structures\SortData;
 use Illuminate\Database\Eloquent\Builder;
@@ -43,17 +44,25 @@ abstract class AbstractRepository
     /**
      * @param int $offset
      * @param SortData[] $sortData
+     * @param AbstractFilterCriteria[] $filterCriterias
      * @return Model[]|Collection
      */
-    public function get(int $offset = 0, array $sortData = []): iterable
+    public function get(int $offset = 0, array $sortData = [], array $filterCriterias = []): iterable
     {
-        $query = $this->queryBuilder->skip($offset)->take(PaginationHelper::RECORDS_PER_PAGE);
+        $query = $this->queryBuilder;
+
+        foreach ($filterCriterias as $criteria) {
+            $query = $criteria->apply($query);
+        }
 
         foreach ($sortData as $data) {
             $query = $query->orderBy($data->sortField, $data->sortDirection);
         }
 
-        return $query->get();
+        return $query
+            ->skip($offset)
+            ->take(PaginationHelper::RECORDS_PER_PAGE)
+            ->get();
     }
 
     /**

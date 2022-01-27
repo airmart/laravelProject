@@ -1,7 +1,9 @@
 <?php
 
-namespace Database\Factories;
+namespace App\Factories;
 
+use App\Exceptions\UnsupportedFilterCriteriaException;
+use App\Repositories\FilterCriterias\AbstractFilterCriteria;
 use App\Repositories\FilterCriterias\ContainsStrCriteria;
 use App\Repositories\FilterCriterias\EndsWithCriteria;
 use App\Repositories\FilterCriterias\InArrayCriteria;
@@ -15,9 +17,9 @@ use App\Repositories\FilterCriterias\IsNotNullCriteria;
 use App\Repositories\FilterCriterias\IsNullCriteria;
 use App\Repositories\FilterCriterias\NotInArrayCriteria;
 use App\Repositories\FilterCriterias\StartsWithCriteria;
-use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Facades\App;
 
-class FilterCriteriaFactory extends Factory
+class FilterCriteriaFactory
 {
     public const FILTER_CRITERIAS = [
         'contains_str' => ContainsStrCriteria::class,
@@ -34,15 +36,37 @@ class FilterCriteriaFactory extends Factory
         'not_in_array' => NotInArrayCriteria::class,
         'starts_with' => StartsWithCriteria::class
     ];
+
     /**
-     * Define the model's default state.
-     *
-     * @return array
+     * @param array $filterData
+     * @return AbstractFilterCriteria[]
+     * @throws UnsupportedFilterCriteriaException
      */
-    public function definition()
+    public static function makeCriterias(array $filterData): array
     {
-        return [
-            //
-        ];
+        $criterias = [];
+
+        foreach ($filterData as $column => $data) {
+            $criteria = self::makeFilterCriteria($data['criteria']);
+            $criteria->setValue($data['value']);
+            $criteria->setColumn($column);
+            $criterias[] = $criteria;
+        }
+
+        return $criterias;
+    }
+
+    /**
+     * @param string $criteriaAlias
+     * @return AbstractFilterCriteria
+     * @throws UnsupportedFilterCriteriaException
+     */
+    private static function makeFilterCriteria(string $criteriaAlias): AbstractFilterCriteria
+    {
+        if (!array_key_exists($criteriaAlias, self::FILTER_CRITERIAS)) {
+            throw new UnsupportedFilterCriteriaException($criteriaAlias);
+        }
+
+        return App::make(self::FILTER_CRITERIAS[$criteriaAlias]);
     }
 }
