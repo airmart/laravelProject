@@ -2,12 +2,14 @@
 
 namespace App\Models;
 
+use App\Models\Interfaces\RelationableModelInterface;
 use App\Models\Interfaces\SortableModelInterface;
 use App\Models\Interfaces\FilterableModelInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-class Post extends Model implements SortableModelInterface, FilterableModelInterface
+class Post extends Model implements SortableModelInterface, FilterableModelInterface, RelationableModelInterface
 {
     use HasFactory;
 
@@ -19,6 +21,16 @@ class Post extends Model implements SortableModelInterface, FilterableModelInter
         'text',
         'user_id',
     ];
+
+    /**
+     * Get the user associated with the post.
+     *
+     * @return BelongsTo
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'user_id', 'id');
+    }
 
     /**
      * @return string
@@ -50,5 +62,13 @@ class Post extends Model implements SortableModelInterface, FilterableModelInter
     public static function getFilterableColumns(): array
     {
         return ['id', 'title', 'text', 'user_id', 'created_at', 'updated_at'];
+    }
+
+    /**
+     * @return string[]
+     */
+    public static function getAvailableRelations(): array
+    {
+        return ['user'];
     }
 }

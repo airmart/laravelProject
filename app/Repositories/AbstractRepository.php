@@ -45,11 +45,18 @@ abstract class AbstractRepository
      * @param int $offset
      * @param SortData[] $sortData
      * @param AbstractFilterCriteria[] $filterCriterias
+     * @param string[] $relations
      * @return Model[]|Collection
      */
-    public function get(int $offset = 0, array $sortData = [], array $filterCriterias = []): iterable
-    {
+    public function get(
+        int $offset = 0,
+        array $sortData = [],
+        array $filterCriterias = [],
+        array $relations = []
+    ): iterable {
         $query = $this->queryBuilder;
+
+        $query = $query->with($relations);
 
         foreach ($filterCriterias as $criteria) {
             $query = $criteria->apply($query);
@@ -67,11 +74,12 @@ abstract class AbstractRepository
 
     /**
      * @param int $id
+     * @param string[] $relations
      * @return Model|null
      */
-    public function find(int $id): ?Model
+    public function find(int $id, array $relations = []): ?Model
     {
-        return $this->queryBuilder->find($id);
+        return $this->queryBuilder->with($relations)->find($id);
     }
 
     /**

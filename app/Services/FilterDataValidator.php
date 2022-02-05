@@ -4,7 +4,7 @@ namespace App\Services;
 
 use App\Exceptions\BadFilterRequestException;
 use App\Exceptions\FilterException;
-use App\Exceptions\UnsupportedFilterColumnExceptions;
+use App\Exceptions\UnsupportedFilterColumnException;
 use App\Exceptions\UnsupportedFilterCriteriaException;
 use App\Factories\FilterCriteriaFactory;
 use App\Repositories\AbstractRepository;
@@ -47,7 +47,7 @@ class FilterDataValidator
             }
 
             if (!in_array($column, $allowedFilterFields)) {
-                throw new UnsupportedFilterColumnExceptions($column);
+                throw new UnsupportedFilterColumnException($column);
             }
         }
     }

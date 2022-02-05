@@ -4,7 +4,7 @@ namespace App\Exceptions;
 
 use Throwable;
 
-class UnsupportedFilterColumnExceptions extends FilterException
+class UnsupportedFilterColumnException extends FilterException
 {
     public function __construct($column, $code = 0, Throwable $previous = null)
     {

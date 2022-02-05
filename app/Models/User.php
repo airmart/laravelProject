@@ -2,14 +2,16 @@
 
 namespace App\Models;
 
+use App\Models\Interfaces\RelationableModelInterface;
 use App\Models\Interfaces\SortableModelInterface;
 use App\Models\Interfaces\FilterableModelInterface;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 
-class User extends Authenticatable implements SortableModelInterface, FilterableModelInterface
+class User extends Authenticatable implements SortableModelInterface, FilterableModelInterface, RelationableModelInterface
 {
     use HasApiTokens, HasFactory, Notifiable;
 
@@ -44,6 +46,16 @@ class User extends Authenticatable implements SortableModelInterface, Filterable
     ];
 
     /**
+     * Get the post associated with the user.
+     *
+     * @return HasMany
+     */
+    public function posts(): HasMany
+    {
+        return $this->hasMany(Post::class, 'user_id', 'id');
+    }
+
+    /**
      * @return string
      */
     public static function getDefaultSortField(): string
@@ -73,5 +85,13 @@ class User extends Authenticatable implements SortableModelInterface, Filterable
     public static function getFilterableColumns(): array
     {
         return ['id', 'name', 'email', 'email_verified_at', 'created_at', 'updated_at'];
+    }
+
+    /**
+     * @return string[]
+     */
+    public static function getAvailableRelations(): array
+    {
+        return ['posts'];
     }
 }

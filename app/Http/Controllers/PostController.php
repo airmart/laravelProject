@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\FilterException;
+use App\Exceptions\RelationException;
 use App\Exceptions\SortingException;
 use App\Factories\FilterCriteriaFactory;
 use App\Services\FilterDataValidator;
+use App\Services\RelationDataValidator;
 use App\Services\SortDataParser;
 use App\Services\SortDataValidator;
 use App\Repositories\PostRepository;
@@ -33,12 +35,16 @@ class PostController extends Controller
     /** @var FilterDataValidator */
     public FilterDataValidator $filterValidator;
 
+    /** @var RelationDataValidator  */
+    public RelationDataValidator $relationValidator;
+
     public function __construct(
         PostRepository $postRepository,
         PaginationHelper $paginationHelper,
         SortDataValidator $sortDataValidator,
         SortDataParser $sortDataParser,
-        FilterDataValidator $filterValidator
+        FilterDataValidator $filterValidator,
+        RelationDataValidator $relationValidator
     )
     {
         $this->postRepository = $postRepository;
@@ -46,6 +52,7 @@ class PostController extends Controller
         $this->sortDataValidator = $sortDataValidator;
         $this->sortDataParser = $sortDataParser;
         $this->filterValidator = $filterValidator;
+        $this->relationValidator = $relationValidator;
     }
 
     /**
@@ -64,6 +71,7 @@ class PostController extends Controller
         ];
         $sortData = (array)$request->input('sort', $defaultSortData);
         $filterData = (array)$request->input('filter', []);
+        $relationData = (array)$request->input('relations', []);
         $page = (int)$request->input('page', 1);
         $offset = $this->paginationHelper->getOffset($page);
 
@@ -80,8 +88,14 @@ class PostController extends Controller
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        try {
+            $this->relationValidator->validateRelationData($this->postRepository, $relationData);
+        } catch (RelationException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $sortData = $this->sortDataParser->parseSortData($sortData);
-        $posts = $this->postRepository->get($offset, $sortData, $filterCriterias);
+        $posts = $this->postRepository->get($offset, $sortData, $filterCriterias, $relationData);
 
         return new JsonResponse($posts);
     }
@@ -116,12 +130,21 @@ class PostController extends Controller
     /**
      * Display the specified resource.
      *
-     * @param  int $id
+     * @param int $id
+     * @param Request $request
      * @return JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function show(int $id, Request $request): JsonResponse
     {
-        $post = $this->postRepository->find($id);
+        $relationData = (array)$request->input('relations', []);
+
+        try {
+            $this->relationValidator->validateRelationData($this->postRepository, $relationData);
+        } catch (RelationException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $post = $this->postRepository->find($id, $relationData);
 
         if (is_null($post)) {
             return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);

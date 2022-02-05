@@ -3,9 +3,11 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\FilterException;
+use App\Exceptions\RelationException;
 use App\Exceptions\SortingException;
 use App\Factories\FilterCriteriaFactory;
 use App\Services\FilterDataValidator;
+use App\Services\RelationDataValidator;
 use App\Services\SortDataParser;
 use App\Services\SortDataValidator;
 use App\Repositories\UserRepository;
@@ -35,18 +37,23 @@ class UserController extends Controller
     /** @var FilterDataValidator */
     public FilterDataValidator $filterValidator;
 
+    /** @var RelationDataValidator  */
+    public RelationDataValidator $relationValidator;
+
     public function __construct(
         UserRepository $userRepository,
         PaginationHelper $paginationHelper,
         SortDataValidator $sortDataValidator,
         SortDataParser $sortDataParser,
-        FilterDataValidator $filterValidator
+        FilterDataValidator $filterValidator,
+        RelationDataValidator $relationValidator
     ) {
         $this->userRepository = $userRepository;
         $this->paginationHelper = $paginationHelper;
         $this->sortDataValidator = $sortDataValidator;
         $this->sortDataParser = $sortDataParser;
         $this->filterValidator = $filterValidator;
+        $this->relationValidator = $relationValidator;
     }
 
     /**
@@ -65,6 +72,7 @@ class UserController extends Controller
         ];
         $sortData = (array)$request->input('sort', $defaultSortData);
         $filterData = (array)$request->input('filter', []);
+        $relationData = (array)$request->input('relations', []);
         $page = (int)$request->input('page', 1);
         $offset = $this->paginationHelper->getOffset($page);
 
@@ -81,8 +89,14 @@ class UserController extends Controller
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        try {
+            $this->relationValidator->validateRelationData($this->userRepository, $relationData);
+        } catch (RelationException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $sortData = $this->sortDataParser->parseSortData($sortData);
-        $users = $this->userRepository->get($offset, $sortData, $filterCriterias);
+        $users = $this->userRepository->get($offset, $sortData, $filterCriterias, $relationData);
 
         return new JsonResponse($users);
     }
@@ -118,11 +132,20 @@ class UserController extends Controller
      * Display the specified resource.
      *
      * @param int $id
+     * @param Request $request
      * @return JsonResponse
      */
-    public function show(int $id): JsonResponse
+    public function show(int $id, Request $request): JsonResponse
     {
-        $user = $this->userRepository->find($id);
+        $relationData = (array)$request->input('relations', []);
+
+        try {
+            $this->relationValidator->validateRelationData($this->userRepository, $relationData);
+        } catch (RelationException $e) {
+            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $user = $this->userRepository->find($id, $relationData);
 
         if (is_null($user)) {
             return new JsonResponse(['error' => 'User does not exist'], Response::HTTP_NOT_FOUND);
