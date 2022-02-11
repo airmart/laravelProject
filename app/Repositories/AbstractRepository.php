@@ -21,6 +21,17 @@ abstract class AbstractRepository
     }
 
     /**
+     * @return Model
+     */
+    public function getModel(): Model
+    {
+        /** @var Model $model */
+        $model = App::make($this->getModelClass());
+
+        return $model;
+    }
+
+    /**
      * @param int $id
      * @param array $data
      */

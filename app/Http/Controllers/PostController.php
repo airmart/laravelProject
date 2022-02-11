@@ -3,13 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\FilterException;
-use App\Exceptions\RelationException;
-use App\Exceptions\SortingException;
 use App\Factories\FilterCriteriaFactory;
-use App\Services\FilterDataValidator;
-use App\Services\RelationDataValidator;
+use App\Rules\AllowedFilterableColumnsRule;
+use App\Rules\AllowedRelationsRule;
+use App\Rules\AllowedSortFieldsRule;
+use App\Rules\ArrayKeyRule;
+use App\Rules\FilterCriteriaKeyRule;
+use App\Rules\IsArrayOfArraysRule;
+use App\Rules\IsStringsArrayRule;
+use App\Rules\IsUniqueArrayRule;
+use App\Rules\SortDirectionAllowedRule;
 use App\Services\SortDataParser;
-use App\Services\SortDataValidator;
 use App\Repositories\PostRepository;
 use App\Models\Post;
 use App\Services\PaginationHelper;
@@ -26,33 +30,18 @@ class PostController extends Controller
     /** @var PaginationHelper */
     public PaginationHelper $paginationHelper;
 
-    /** @var SortDataValidator */
-    public SortDataValidator $sortDataValidator;
-
     /** @var SortDataParser */
     public SortDataParser $sortDataParser;
-
-    /** @var FilterDataValidator */
-    public FilterDataValidator $filterValidator;
-
-    /** @var RelationDataValidator  */
-    public RelationDataValidator $relationValidator;
 
     public function __construct(
         PostRepository $postRepository,
         PaginationHelper $paginationHelper,
-        SortDataValidator $sortDataValidator,
-        SortDataParser $sortDataParser,
-        FilterDataValidator $filterValidator,
-        RelationDataValidator $relationValidator
+        SortDataParser $sortDataParser
     )
     {
         $this->postRepository = $postRepository;
         $this->paginationHelper = $paginationHelper;
-        $this->sortDataValidator = $sortDataValidator;
         $this->sortDataParser = $sortDataParser;
-        $this->filterValidator = $filterValidator;
-        $this->relationValidator = $relationValidator;
     }
 
     /**
@@ -63,34 +52,58 @@ class PostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+//        dd(http_build_query([
+//            'relation' => [
+//                [
+//                    'user' => [123 , 'name'],
+//                ]
+//            ]
+//        ]));
+        $validator = Validator::make($request->all(), [
+            'sort' => [
+                'bail',
+                'array',
+                new IsArrayOfArraysRule(),
+                new ArrayKeyRule(['sortDirection', 'sortField']),
+                new SortDirectionAllowedRule(),
+                new AllowedSortFieldsRule($this->postRepository)
+            ],
+            'filter' => [
+                'bail',
+                'array',
+                new IsArrayOfArraysRule(),
+                new ArrayKeyRule(['criteria', 'value']),
+                new FilterCriteriaKeyRule(),
+                new AllowedFilterableColumnsRule($this->postRepository)
+            ],
+            'relations' => [
+                'bail',
+                'array',
+                new IsStringsArrayRule(),
+                new AllowedRelationsRule($this->postRepository),
+                new IsUniqueArrayRule()
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $defaultSortData = [
             [
                 'sortField' => Post::getDefaultSortField(),
                 'sortDirection' => Post::getDefaultSortDirection()
             ]
         ];
-        $sortData = (array)$request->input('sort', $defaultSortData);
-        $filterData = (array)$request->input('filter', []);
-        $relationData = (array)$request->input('relations', []);
+        $sortData = $request->input('sort', $defaultSortData);
+        $filterData = $request->input('filter', []);
+        $relationData = $request->input('relations', []);
         $page = (int)$request->input('page', 1);
         $offset = $this->paginationHelper->getOffset($page);
 
         try {
-            $this->sortDataValidator->validateSortData($this->postRepository, $sortData);
-        } catch (SortingException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        try {
-            $this->filterValidator->validateFilterData($this->postRepository, $filterData);
             $filterCriterias = FilterCriteriaFactory::makeCriterias($filterData);
         } catch (FilterException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        try {
-            $this->relationValidator->validateRelationData($this->postRepository, $relationData);
-        } catch (RelationException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -136,14 +149,20 @@ class PostController extends Controller
      */
     public function show(int $id, Request $request): JsonResponse
     {
-        $relationData = (array)$request->input('relations', []);
+        $validator = Validator::make($request->all(), [
+            'relations' => [
+                'array',
+                new IsStringsArrayRule(),
+                new AllowedRelationsRule($this->postRepository),
+                new IsUniqueArrayRule()
+            ]
+        ]);
 
-        try {
-            $this->relationValidator->validateRelationData($this->postRepository, $relationData);
-        } catch (RelationException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        if ($validator->fails()) {
+            return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $relationData = $request->input('relations', []);
         $post = $this->postRepository->find($id, $relationData);
 
         if (is_null($post)) {

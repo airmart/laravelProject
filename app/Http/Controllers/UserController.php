@@ -6,6 +6,15 @@ use App\Exceptions\FilterException;
 use App\Exceptions\RelationException;
 use App\Exceptions\SortingException;
 use App\Factories\FilterCriteriaFactory;
+use App\Rules\AllowedFilterableColumnsRule;
+use App\Rules\AllowedRelationsRule;
+use App\Rules\AllowedSortFieldsRule;
+use App\Rules\ArrayKeyRule;
+use App\Rules\FilterCriteriaKeyRule;
+use App\Rules\IsArrayOfArraysRule;
+use App\Rules\IsStringsArrayRule;
+use App\Rules\IsUniqueArrayRule;
+use App\Rules\SortDirectionAllowedRule;
 use App\Services\FilterDataValidator;
 use App\Services\RelationDataValidator;
 use App\Services\SortDataParser;
@@ -28,32 +37,17 @@ class UserController extends Controller
     /** @var PaginationHelper */
     public PaginationHelper $paginationHelper;
 
-    /** @var SortDataValidator */
-    public SortDataValidator $sortDataValidator;
-
     /** @var SortDataParser */
     public SortDataParser $sortDataParser;
-
-    /** @var FilterDataValidator */
-    public FilterDataValidator $filterValidator;
-
-    /** @var RelationDataValidator  */
-    public RelationDataValidator $relationValidator;
 
     public function __construct(
         UserRepository $userRepository,
         PaginationHelper $paginationHelper,
-        SortDataValidator $sortDataValidator,
-        SortDataParser $sortDataParser,
-        FilterDataValidator $filterValidator,
-        RelationDataValidator $relationValidator
+        SortDataParser $sortDataParser
     ) {
         $this->userRepository = $userRepository;
         $this->paginationHelper = $paginationHelper;
-        $this->sortDataValidator = $sortDataValidator;
         $this->sortDataParser = $sortDataParser;
-        $this->filterValidator = $filterValidator;
-        $this->relationValidator = $relationValidator;
     }
 
     /**
@@ -64,34 +58,51 @@ class UserController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
+        $validator = Validator::make($request->all(), [
+            'sort' => [
+                'bail',
+                'array',
+                new IsArrayOfArraysRule(),
+                new ArrayKeyRule(['sortDirection', 'sortField']),
+                new SortDirectionAllowedRule(),
+                new AllowedSortFieldsRule($this->userRepository)
+            ],
+            'filter' => [
+                'bail',
+                'array',
+                new IsArrayOfArraysRule(),
+                new ArrayKeyRule(['criteria', 'value']),
+                new FilterCriteriaKeyRule(),
+                new AllowedFilterableColumnsRule($this->userRepository)
+            ],
+            'relations' => [
+                'bail',
+                'array',
+                new IsStringsArrayRule(),
+                new AllowedRelationsRule($this->userRepository),
+                new IsUniqueArrayRule()
+            ],
+        ]);
+
+        if ($validator->fails()) {
+            return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
         $defaultSortData = [
             [
                 'sortField' => User::getDefaultSortField(),
                 'sortDirection' => User::getDefaultSortDirection()
             ]
         ];
-        $sortData = (array)$request->input('sort', $defaultSortData);
-        $filterData = (array)$request->input('filter', []);
-        $relationData = (array)$request->input('relations', []);
+        $sortData = $request->input('sort', $defaultSortData);
+        $filterData = $request->input('filter', []);
+        $relationData = $request->input('relations', []);
         $page = (int)$request->input('page', 1);
         $offset = $this->paginationHelper->getOffset($page);
 
         try {
-            $this->sortDataValidator->validateSortData($this->userRepository, $sortData);
-        } catch (SortingException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        try {
-            $this->filterValidator->validateFilterData($this->userRepository, $filterData);
             $filterCriterias = FilterCriteriaFactory::makeCriterias($filterData);
         } catch (FilterException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
-        try {
-            $this->relationValidator->validateRelationData($this->userRepository, $relationData);
-        } catch (RelationException $e) {
             return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
@@ -137,7 +148,21 @@ class UserController extends Controller
      */
     public function show(int $id, Request $request): JsonResponse
     {
-        $relationData = (array)$request->input('relations', []);
+        $validator = Validator::make($request->all(), [
+            'relations' => [
+                'bail',
+                'array',
+                new IsStringsArrayRule(),
+                new AllowedRelationsRule($this->userRepository),
+                new IsUniqueArrayRule()
+            ]
+        ]);
+
+        if ($validator->fails()) {
+            return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
+
+        $relationData = $request->input('relations', []);
 
         try {
             $this->relationValidator->validateRelationData($this->userRepository, $relationData);
