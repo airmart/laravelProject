@@ -3,8 +3,6 @@
 namespace App\Http\Controllers;
 
 use App\Exceptions\FilterException;
-use App\Exceptions\RelationException;
-use App\Exceptions\SortingException;
 use App\Factories\FilterCriteriaFactory;
 use App\Rules\AllowedFilterableColumnsRule;
 use App\Rules\AllowedRelationsRule;
@@ -15,10 +13,8 @@ use App\Rules\IsArrayOfArraysRule;
 use App\Rules\IsStringsArrayRule;
 use App\Rules\IsUniqueArrayRule;
 use App\Rules\SortDirectionAllowedRule;
-use App\Services\FilterDataValidator;
-use App\Services\RelationDataValidator;
+use App\Services\RequestDataCleaner;
 use App\Services\SortDataParser;
-use App\Services\SortDataValidator;
 use App\Repositories\UserRepository;
 use App\Models\User;
 use App\Services\PaginationHelper;
@@ -32,22 +28,24 @@ use Symfony\Component\HttpFoundation\Response;
 class UserController extends Controller
 {
     /** @var UserRepository */
-    public UserRepository $userRepository;
+    private UserRepository $userRepository;
 
     /** @var PaginationHelper */
-    public PaginationHelper $paginationHelper;
+    private PaginationHelper $paginationHelper;
 
     /** @var SortDataParser */
-    public SortDataParser $sortDataParser;
+    private SortDataParser $sortDataParser;
 
     public function __construct(
         UserRepository $userRepository,
         PaginationHelper $paginationHelper,
-        SortDataParser $sortDataParser
+        SortDataParser $sortDataParser,
+        RequestDataCleaner $requestCleaner
     ) {
         $this->userRepository = $userRepository;
         $this->paginationHelper = $paginationHelper;
         $this->sortDataParser = $sortDataParser;
+        $requestCleaner->clean($userRepository);
     }
 
     /**

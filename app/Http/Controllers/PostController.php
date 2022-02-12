@@ -13,6 +13,7 @@ use App\Rules\IsArrayOfArraysRule;
 use App\Rules\IsStringsArrayRule;
 use App\Rules\IsUniqueArrayRule;
 use App\Rules\SortDirectionAllowedRule;
+use App\Services\RequestDataCleaner;
 use App\Services\SortDataParser;
 use App\Repositories\PostRepository;
 use App\Models\Post;
@@ -25,23 +26,25 @@ use Symfony\Component\HttpFoundation\Response;
 class PostController extends Controller
 {
     /** @var PostRepository */
-    public PostRepository $postRepository;
+    private PostRepository $postRepository;
 
     /** @var PaginationHelper */
-    public PaginationHelper $paginationHelper;
+    private PaginationHelper $paginationHelper;
 
     /** @var SortDataParser */
-    public SortDataParser $sortDataParser;
+    private SortDataParser $sortDataParser;
 
     public function __construct(
         PostRepository $postRepository,
         PaginationHelper $paginationHelper,
-        SortDataParser $sortDataParser
+        SortDataParser $sortDataParser,
+        RequestDataCleaner $requestCleaner
     )
     {
         $this->postRepository = $postRepository;
         $this->paginationHelper = $paginationHelper;
         $this->sortDataParser = $sortDataParser;
+        $requestCleaner->clean($postRepository);
     }
 
     /**
@@ -52,13 +55,6 @@ class PostController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-//        dd(http_build_query([
-//            'relation' => [
-//                [
-//                    'user' => [123 , 'name'],
-//                ]
-//            ]
-//        ]));
         $validator = Validator::make($request->all(), [
             'sort' => [
                 'bail',
