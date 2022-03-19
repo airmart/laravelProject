@@ -2,31 +2,26 @@
 
 namespace App\Http\Controllers;
 
-use App\Exceptions\FilterException;
-use App\Factories\FilterCriteriaFactory;
-use App\Rules\AllowedFilterableColumnsRule;
+use App\Models\Comment;
+use App\Repositories\CommentRepository;
 use App\Rules\AllowedRelationsRule;
 use App\Rules\AllowedSortFieldsRule;
 use App\Rules\ArrayKeyRule;
-use App\Rules\FilterCriteriaKeyRule;
 use App\Rules\IsArrayOfArraysRule;
 use App\Rules\IsStringsArrayRule;
 use App\Rules\IsUniqueArrayRule;
 use App\Rules\SortDirectionAllowedRule;
-use App\Services\RequestDataCleaner;
-use App\Services\SortDataParser;
-use App\Repositories\PostRepository;
-use App\Models\Post;
 use App\Services\PaginationHelper;
-use Illuminate\Http\JsonResponse;
+use App\Services\SortDataParser;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Validator;
 use Symfony\Component\HttpFoundation\Response;
 
-class PostController extends Controller
+class CommentController extends Controller
 {
-    /** @var PostRepository */
-    private PostRepository $postRepository;
+    /** @var CommentRepository */
+    private CommentRepository $commentRepository;
 
     /** @var PaginationHelper */
     private PaginationHelper $paginationHelper;
@@ -35,16 +30,14 @@ class PostController extends Controller
     private SortDataParser $sortDataParser;
 
     public function __construct(
-        PostRepository $postRepository,
+        CommentRepository $commentRepository,
         PaginationHelper $paginationHelper,
-        SortDataParser $sortDataParser,
-        RequestDataCleaner $requestCleaner
+        SortDataParser $sortDataParser
     )
     {
-        $this->postRepository = $postRepository;
+        $this->commentRepository = $commentRepository;
         $this->paginationHelper = $paginationHelper;
         $this->sortDataParser = $sortDataParser;
-        $requestCleaner->clean($postRepository);
     }
 
     /**
@@ -62,21 +55,13 @@ class PostController extends Controller
                 new IsArrayOfArraysRule(),
                 new ArrayKeyRule(['sortDirection', 'sortField']),
                 new SortDirectionAllowedRule(),
-                new AllowedSortFieldsRule($this->postRepository)
-            ],
-            'filter' => [
-                'bail',
-                'array',
-                new IsArrayOfArraysRule(),
-                new ArrayKeyRule(['criteria', 'value']),
-                new FilterCriteriaKeyRule(),
-                new AllowedFilterableColumnsRule($this->postRepository)
+                new AllowedSortFieldsRule($this->commentRepository)
             ],
             'relations' => [
                 'bail',
                 'array',
                 new IsStringsArrayRule(),
-                new AllowedRelationsRule($this->postRepository),
+                new AllowedRelationsRule($this->commentRepository),
                 new IsUniqueArrayRule()
             ],
         ]);
@@ -87,26 +72,18 @@ class PostController extends Controller
 
         $defaultSortData = [
             [
-                'sortField' => Post::getDefaultSortField(),
-                'sortDirection' => Post::getDefaultSortDirection()
+                'sortField' => Comment::getDefaultSortField(),
+                'sortDirection' => Comment::getDefaultSortDirection()
             ]
         ];
         $sortData = $request->input('sort', $defaultSortData);
-        $filterData = $request->input('filter', []);
         $relationData = $request->input('relations', []);
         $page = (int)$request->input('page', 1);
         $offset = $this->paginationHelper->getOffset($page);
-
-        try {
-            $filterCriterias = FilterCriteriaFactory::makeCriterias($filterData);
-        } catch (FilterException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
         $sortData = $this->sortDataParser->parseSortData($sortData);
-        $posts = $this->postRepository->get($offset, $sortData, $filterCriterias, $relationData);
+        $comments = $this->commentRepository->get($offset, $sortData, [], $relationData);
 
-        return new JsonResponse($posts);
+        return new JsonResponse($comments);
     }
 
     /**
@@ -118,55 +95,39 @@ class PostController extends Controller
     public function store(Request $request): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'title' => ['required', 'string', 'max:255'],
             'text' => ['required', 'string'],
             'user_id' => ['required', 'integer', 'exists:users,id'],
+            'post_id' => ['required', 'integer', 'exists:posts,id']
         ]);
 
         if ($validator->fails()) {
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $post = $this->postRepository->create([
-            'title' => $request->input('title'),
+        $comment = $this->commentRepository->create([
             'text' => $request->input('text'),
-            'user_id' => $request->input('user_id')
+            'user_id' => $request->input('user_id'),
+            'post_id' => $request->input('post_id')
         ]);
 
-        return new JsonResponse($post);
+        return new JsonResponse($comment);
     }
 
     /**
      * Display the specified resource.
      *
      * @param int $id
-     * @param Request $request
      * @return JsonResponse
      */
-    public function show(int $id, Request $request): JsonResponse
+    public function show(int $id): JsonResponse
     {
-        $validator = Validator::make($request->all(), [
-            'relations' => [
-                'bail',
-                'array',
-                new IsStringsArrayRule(),
-                new AllowedRelationsRule($this->postRepository),
-                new IsUniqueArrayRule()
-            ]
-        ]);
+        $comment = $this->commentRepository->find($id);
 
-        if ($validator->fails()) {
-            return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
+        if (is_null($comment)) {
+            return new JsonResponse(['error' => 'Comment does not exist'], Response::HTTP_NOT_FOUND);
         }
 
-        $relationData = $request->input('relations', []);
-        $post = $this->postRepository->find($id, $relationData);
-
-        if (is_null($post)) {
-            return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
-        }
-
-        return new JsonResponse($post);
+        return new JsonResponse($comment);
     }
 
     /**
@@ -178,30 +139,30 @@ class PostController extends Controller
      */
     public function update(Request $request, int $id): JsonResponse
     {
-        $post = $this->postRepository->find($id);
+        $comment = $this->commentRepository->find($id);
 
-        if (is_null($post)) {
-            return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
+        if (is_null($comment)) {
+            return new JsonResponse(['error' => 'Comment does not exist'], Response::HTTP_NOT_FOUND);
         }
 
         $validator = Validator::make($request->all(), [
-            'title' => ['required', 'string', 'max:255'],
             'text' => ['required', 'string'],
-            'user_id' => ['required', 'integer', 'exists:users,id']
+            'user_id' => ['required', 'integer', 'exists:users,id'],
+            'post_id' => ['required', 'integer', 'exists:posts,id']
         ]);
 
         if ($validator->fails()) {
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
-        $this->postRepository->update($id, [
-            'title' => $request->input('title'),
+        $this->commentRepository->update($id, [
             'text' => $request->input('text'),
-            'user_id' => $request->input('user_id')
+            'user_id' => $request->input('user_id'),
+            'post_id' => $request->input('post_id')
         ]);
-        $post->refresh();
+        $comment->refresh();
 
-        return new JsonResponse($post);
+        return new JsonResponse($comment);
     }
 
     /**
@@ -212,13 +173,13 @@ class PostController extends Controller
      */
     public function destroy(int $id): JsonResponse
     {
-        $post = $this->postRepository->find($id);
+        $comment = $this->commentRepository->find($id);
 
-        if (is_null($post)) {
-            return new JsonResponse(['error' => 'Post does not exist'], Response::HTTP_NOT_FOUND);
+        if (is_null($comment)) {
+            return new JsonResponse(['error' => 'Comment does not exist'], Response::HTTP_NOT_FOUND);
         }
 
-        $this->postRepository->delete($id);
+        $this->commentRepository->delete($id);
 
         return new JsonResponse(['success' => true]);
     }

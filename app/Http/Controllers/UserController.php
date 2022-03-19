@@ -161,13 +161,6 @@ class UserController extends Controller
         }
 
         $relationData = $request->input('relations', []);
-
-        try {
-            $this->relationValidator->validateRelationData($this->userRepository, $relationData);
-        } catch (RelationException $e) {
-            return new JsonResponse(['error' => $e->getMessage()], Response::HTTP_UNPROCESSABLE_ENTITY);
-        }
-
         $user = $this->userRepository->find($id, $relationData);
 
         if (is_null($user)) {
