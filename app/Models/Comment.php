@@ -8,6 +8,14 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property string $text
+ * @property int $user_id
+ * @property int $post_id
+ * @property-read $user
+ * @property-read $post
+ */
 class Comment extends Model implements SortableModelInterface, RelationableModelInterface
 {
     use HasFactory;

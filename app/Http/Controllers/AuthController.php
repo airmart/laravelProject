@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers;
 
+use App\Constants\RoleConstants;
+use App\Repositories\RoleRepository;
 use App\Repositories\UserRepository;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\JsonResponse;
@@ -14,11 +16,16 @@ use Symfony\Component\HttpFoundation\Response;
 
 class AuthController extends Controller
 {
+    /** @var UserRepository */
     private UserRepository $userRepository;
 
-    public function __construct(UserRepository $userRepository)
+    /** @var RoleRepository  */
+    private RoleRepository $roleRepository;
+
+    public function __construct(UserRepository $userRepository, RoleRepository $roleRepository)
     {
         $this->userRepository = $userRepository;
+        $this->roleRepository = $roleRepository;
     }
 
     /**
@@ -64,11 +71,14 @@ class AuthController extends Controller
             return new JsonResponse(['errors' => $validator->messages()], Response::HTTP_UNPROCESSABLE_ENTITY);
         }
 
+        $role = $this->roleRepository->queryBuilder->where('name', RoleConstants::USER_ROLE_NAME)->first();
+
         /** @var Authenticatable $user */
         $user = $this->userRepository->create([
             'name' => $request->post('name'),
             'password' => Hash::make($request->post('password')),
-            'email' => $request->post('email')
+            'email' => $request->post('email'),
+            'role_id' => $role->id
         ]);
         Auth::login($user);
 

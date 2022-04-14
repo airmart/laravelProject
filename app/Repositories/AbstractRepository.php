@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\App;
 abstract class AbstractRepository
 {
     /** @var Builder */
-    protected Builder $queryBuilder;
+    public Builder $queryBuilder;
 
     public function __construct()
     {

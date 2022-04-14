@@ -9,6 +9,13 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
+/**
+ * @property int $id
+ * @property string $title
+ * @property string $text
+ * @property int $user_id
+ * @property-read BelongsTo $user
+ */
 class Post extends Model implements SortableModelInterface, FilterableModelInterface, RelationableModelInterface
 {
     use HasFactory;
